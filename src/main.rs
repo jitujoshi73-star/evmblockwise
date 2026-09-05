@@ -90,7 +90,7 @@ enum BatchPayload {
 }
 
 // ============================================================
-// RPC ENDPOINTS
+// RPC ENDPOINTS (No API Key Required)
 // ============================================================
 
 fn rpc_list(chain: &str) -> Vec<String> {
@@ -101,43 +101,50 @@ fn rpc_list(chain: &str) -> Vec<String> {
             "https://bsc-dataseed1.ninicoin.io/".into(),
             "https://bsc-dataseed2.defibit.io/".into(),
             "https://bsc-dataseed2.ninicoin.io/".into(),
-            "https://rpc.ankr.com/bsc".into(),
+            "https://binance.llamarpc.com".into(),
+            "https://bsc.publicnode.com".into(),
             "https://1rpc.io/bnb".into(),
         ],
         "ethereum" | "eth" => vec![
             "https://eth.llamarpc.com".into(),
             "https://cloudflare-eth.com".into(),
-            "https://rpc.ankr.com/eth".into(),
+            "https://ethereum.publicnode.com".into(),
             "https://1rpc.io/eth".into(),
         ],
         "polygon" | "matic" => vec![
             "https://polygon-rpc.com".into(),
-            "https://rpc.ankr.com/polygon".into(),
+            "https://polygon.llamarpc.com".into(),
+            "https://polygon-bor-rpc.publicnode.com".into(),
             "https://1rpc.io/matic".into(),
         ],
         "arbitrum" | "arb" => vec![
             "https://arb1.arbitrum.io/rpc".into(),
-            "https://rpc.ankr.com/arbitrum".into(),
+            "https://arbitrum.llamarpc.com".into(),
+            "https://arbitrum-one-rpc.publicnode.com".into(),
             "https://1rpc.io/arb".into(),
         ],
         "base" => vec![
             "https://mainnet.base.org".into(),
             "https://base.llamarpc.com".into(),
+            "https://base-rpc.publicnode.com".into(),
             "https://1rpc.io/base".into(),
         ],
         "optimism" | "op" => vec![
             "https://mainnet.optimism.io".into(),
             "https://optimism.llamarpc.com".into(),
+            "https://optimism-rpc.publicnode.com".into(),
             "https://1rpc.io/op".into(),
         ],
         "avalanche_c" | "avalanche" | "avax" => vec![
             "https://api.avax.network/ext/bc/C/rpc".into(),
-            "https://rpc.ankr.com/avalanche".into(),
+            "https://avalanche-c-chain-rpc.publicnode.com".into(),
             "https://1rpc.io/avax/c".into(),
         ],
         _ => vec![
             "https://bsc-dataseed.binance.org/".into(),
-            "https://rpc.ankr.com/bsc".into(),
+            "https://bsc-dataseed1.defibit.io/".into(),
+            "https://binance.llamarpc.com".into(),
+            "https://bsc.publicnode.com".into(),
             "https://1rpc.io/bnb".into(),
         ],
     }
