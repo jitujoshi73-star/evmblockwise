@@ -18,21 +18,21 @@ use tokio::time::sleep;
 // ============================================================
 
 const MAX_RETRY_ROUNDS: usize = 12;
-const INITIAL_RETRY_DELAY_SECS: u64 = 10;
-const MAX_RETRY_DELAY_SECS: u64 = 120;
+const INITIAL_RETRY_DELAY_SECS: u64 = 5;
+const MAX_RETRY_DELAY_SECS: u64 = 60;
 const PART_SIZE: u64 = 1_000_000;
-const RPC_DELAY_MS: u64 = 300;
-const HTTP_TIMEOUT_SECS: u64 = 60;
+const RPC_DELAY_MS: u64 = 100;
+const HTTP_TIMEOUT_SECS: u64 = 30;
 const UPLOAD_RETRIES: usize = 5;
 const RPC_ROTATE_BLOCKS: u64 = 20_000;
-const RPC_ROTATE_WAIT_SECS: u64 = 10;
+const RPC_ROTATE_WAIT_SECS: u64 = 5;
 
 // ============================================================
 // CLI CONFIG
 // ============================================================
 
 #[derive(Parser, Debug)]
-#[command(author, version = "2.5.0", about = "High-performance EVM Address Extractor")]
+#[command(author, version = "2.5.1", about = "High-performance EVM Address Extractor")]
 struct Args {
     #[arg(long, env = "CHAIN", default_value = "bnb")]
     chain: String,
@@ -54,7 +54,7 @@ struct Args {
 }
 
 // ============================================================
-// TYPED RPC STRUCTS (Zero-cost Deserialization)
+// TYPED RPC STRUCTS
 // ============================================================
 
 #[derive(Deserialize)]
@@ -90,68 +90,67 @@ enum BatchPayload {
 }
 
 // ============================================================
-// RPC ENDPOINTS (No API Key Required)
+// RPC ENDPOINTS (Only Official Dataseeds & Open Nodes)
 // ============================================================
 
 fn rpc_list(chain: &str) -> Vec<String> {
     match chain.to_lowercase().as_str() {
         "bnb" | "bsc" => vec![
             "https://bsc-dataseed.binance.org/".into(),
+            "https://bsc-dataseed1.binance.org/".into(),
+            "https://bsc-dataseed2.binance.org/".into(),
+            "https://bsc-dataseed.bnbchain.org".into(),
+            "https://bsc-dataseed1.bnbchain.org".into(),
+            "https://bsc-dataseed2.bnbchain.org".into(),
             "https://bsc-dataseed1.defibit.io/".into(),
-            "https://bsc-dataseed1.ninicoin.io/".into(),
             "https://bsc-dataseed2.defibit.io/".into(),
+            "https://bsc-dataseed1.ninicoin.io/".into(),
             "https://bsc-dataseed2.ninicoin.io/".into(),
-            "https://binance.llamarpc.com".into(),
-            "https://bsc.publicnode.com".into(),
-            "https://1rpc.io/bnb".into(),
+            "https://bsc.drpc.org".into(),
+            "https://bsc.meowrpc.com".into(),
         ],
         "ethereum" | "eth" => vec![
-            "https://eth.llamarpc.com".into(),
             "https://cloudflare-eth.com".into(),
-            "https://ethereum.publicnode.com".into(),
-            "https://1rpc.io/eth".into(),
+            "https://eth.drpc.org".into(),
+            "https://rpc.payload.de".into(),
+            "https://eth.merkle.io".into(),
         ],
         "polygon" | "matic" => vec![
             "https://polygon-rpc.com".into(),
-            "https://polygon.llamarpc.com".into(),
-            "https://polygon-bor-rpc.publicnode.com".into(),
-            "https://1rpc.io/matic".into(),
+            "https://polygon.drpc.org".into(),
+            "https://polygon.meowrpc.com".into(),
         ],
         "arbitrum" | "arb" => vec![
             "https://arb1.arbitrum.io/rpc".into(),
-            "https://arbitrum.llamarpc.com".into(),
-            "https://arbitrum-one-rpc.publicnode.com".into(),
-            "https://1rpc.io/arb".into(),
+            "https://arbitrum.drpc.org".into(),
+            "https://arbitrum.meowrpc.com".into(),
         ],
         "base" => vec![
             "https://mainnet.base.org".into(),
-            "https://base.llamarpc.com".into(),
-            "https://base-rpc.publicnode.com".into(),
-            "https://1rpc.io/base".into(),
+            "https://base.drpc.org".into(),
+            "https://base.meowrpc.com".into(),
         ],
         "optimism" | "op" => vec![
             "https://mainnet.optimism.io".into(),
-            "https://optimism.llamarpc.com".into(),
-            "https://optimism-rpc.publicnode.com".into(),
-            "https://1rpc.io/op".into(),
+            "https://optimism.drpc.org".into(),
+            "https://optimism.meowrpc.com".into(),
         ],
         "avalanche_c" | "avalanche" | "avax" => vec![
             "https://api.avax.network/ext/bc/C/rpc".into(),
-            "https://avalanche-c-chain-rpc.publicnode.com".into(),
-            "https://1rpc.io/avax/c".into(),
+            "https://avalanche.drpc.org".into(),
         ],
         _ => vec![
             "https://bsc-dataseed.binance.org/".into(),
+            "https://bsc-dataseed1.binance.org/".into(),
+            "https://bsc-dataseed.bnbchain.org".into(),
             "https://bsc-dataseed1.defibit.io/".into(),
-            "https://binance.llamarpc.com".into(),
-            "https://bsc.publicnode.com".into(),
-            "https://1rpc.io/bnb".into(),
+            "https://bsc-dataseed1.ninicoin.io/".into(),
         ],
     }
 }
 
 // ============================================================
-// HELPERS (HEX & ADDRESS)
+// HELPERS
 // ============================================================
 
 #[inline(always)]
@@ -330,15 +329,6 @@ async fn fetch_batch_with_retry(
     let preferred = preferred_rpc % rpcs.len();
 
     for retry_round in 1..=MAX_RETRY_ROUNDS {
-        println!(
-            "Trying batch {}-{} | retry round {}/{} | preferred RPC #{}",
-            first,
-            last,
-            retry_round,
-            MAX_RETRY_ROUNDS,
-            preferred + 1
-        );
-
         for offset in 0..rpcs.len() {
             let rpc_index = (preferred + offset) % rpcs.len();
             let rpc = &rpcs[rpc_index];
@@ -360,26 +350,10 @@ async fn fetch_batch_with_retry(
                         addresses.extend(block_addresses);
                     }
 
-                    println!(
-                        "Batch {}-{} recovered using RPC #{} (attempt {}) | Transactions: {} | Addresses: {}",
-                        first,
-                        last,
-                        rpc_index + 1,
-                        retry_round,
-                        transactions,
-                        addresses.len()
-                    );
-
                     return Ok((addresses, transactions));
                 }
-                Err(error) => {
-                    println!(
-                        "Batch {}-{} failed on RPC #{}: {}",
-                        first,
-                        last,
-                        rpc_index + 1,
-                        error
-                    );
+                Err(_error) => {
+                    // Failover to next RPC seamlessly
                 }
             }
 
@@ -387,20 +361,13 @@ async fn fetch_batch_with_retry(
         }
 
         if retry_round < MAX_RETRY_ROUNDS {
-            let multiplier = 2u64.saturating_pow(((retry_round - 1).min(4)) as u32);
+            let multiplier = 2u64.saturating_pow(((retry_round - 1).min(3)) as u32);
             let delay = (INITIAL_RETRY_DELAY_SECS * multiplier).min(MAX_RETRY_DELAY_SECS);
-
-            println!(
-                "ALL RPCs failed for batch {}-{}. Waiting {}s before next round...",
-                first, last, delay
-            );
             sleep(Duration::from_secs(delay)).await;
         }
     }
 
     // Fallback: Individual block requests
-    println!("Batch {}-{} exhausted retries. Falling back to single requests...", first, last);
-
     let mut addresses = Vec::new();
     let mut total_transactions = 0usize;
 
@@ -412,20 +379,14 @@ async fn fetch_batch_with_retry(
                 let rpc_index = (preferred + offset) % rpcs.len();
                 let rpc = &rpcs[rpc_index];
 
-                match request_single_block(client, rpc, *block_number).await {
-                    Ok(block) => match extract_block_addresses(block, *block_number) {
-                        Ok((block_addresses, tx_count)) => {
-                            total_transactions += tx_count;
-                            addresses.extend(block_addresses);
-                            recovered = true;
-                            break;
-                        }
-                        Err(e) => {
-                            println!("Block {} invalid on RPC #{}: {}", block_number, rpc_index + 1, e);
-                        }
-                    },
-                    Err(e) => {
-                        println!("Block {} failed on RPC #{}: {}", block_number, rpc_index + 1, e);
+                if let Ok(block) = request_single_block(client, rpc, *block_number).await {
+                    if let Ok((block_addresses, tx_count)) =
+                        extract_block_addresses(block, *block_number)
+                    {
+                        total_transactions += tx_count;
+                        addresses.extend(block_addresses);
+                        recovered = true;
+                        break;
                     }
                 }
                 sleep(Duration::from_millis(RPC_DELAY_MS)).await;
@@ -436,7 +397,7 @@ async fn fetch_batch_with_retry(
             }
 
             if retry_round < MAX_RETRY_ROUNDS {
-                let multiplier = 2u64.saturating_pow(((retry_round - 1).min(4)) as u32);
+                let multiplier = 2u64.saturating_pow(((retry_round - 1).min(3)) as u32);
                 let delay = (INITIAL_RETRY_DELAY_SECS * multiplier).min(MAX_RETRY_DELAY_SECS);
                 sleep(Duration::from_secs(delay)).await;
             }
@@ -451,7 +412,7 @@ async fn fetch_batch_with_retry(
 }
 
 // ============================================================
-// FILE WRITER & DISK OPS
+// FILE WRITER
 // ============================================================
 
 fn write_addresses_file(
@@ -497,7 +458,7 @@ fn write_addresses_file(
 }
 
 // ============================================================
-// ASYNC GITHUB RELEASE UPLOADER
+// UPLOADER
 // ============================================================
 
 async fn upload_to_release(tag: &str, file_name: &str) -> bool {
@@ -547,7 +508,7 @@ async fn get_latest_block(client: &Client, rpcs: &[String]) -> Result<u64> {
                     if let Ok(parsed) = response.json::<RpcResponse<String>>().await {
                         if let Some(result) = parsed.result {
                             if let Ok(block) = parse_hex_u64(&result) {
-                                println!("Connected to RPC #{} | Latest block: {}", index + 1, block);
+                                println!("Connected to RPC #{} ({}) | Latest block: {}", index + 1, rpc, block);
                                 return Ok(block);
                             }
                         }
@@ -556,8 +517,8 @@ async fn get_latest_block(client: &Client, rpcs: &[String]) -> Result<u64> {
             }
         }
 
-        println!("All RPCs failed for block height check. Retrying in 30s...");
-        sleep(Duration::from_secs(30)).await;
+        println!("All RPCs failed for block height check. Retrying in 15s...");
+        sleep(Duration::from_secs(15)).await;
     }
 }
 
@@ -578,12 +539,13 @@ async fn main() -> Result<()> {
 
     let rpcs = rpc_list(&args.chain);
 
+    // Standard Browser User-Agent avoids Cloudflare 403 blocks
     let client = Client::builder()
-        .connect_timeout(Duration::from_secs(15))
+        .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
         .pool_idle_timeout(Duration::from_secs(30))
         .pool_max_idle_per_host(args.concurrency * 2)
-        .user_agent("evm-blockwise-extractor/2.5")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
         .build()?;
 
     let client = Arc::new(client);
@@ -624,11 +586,11 @@ async fn main() -> Result<()> {
             let preferred_rpc = (segment_number as usize) % rpcs.len();
 
             println!(
-                "\nSegment #{} | Blocks: {} -> {} | Preferred RPC #{}",
+                "\nSegment #{} | Blocks: {} -> {} | Active Base RPC: {}",
                 segment_number + 1,
                 segment_start,
                 segment_end,
-                preferred_rpc + 1
+                rpcs[preferred_rpc]
             );
 
             let mut batches = Vec::new();
